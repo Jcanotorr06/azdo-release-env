@@ -1,0 +1,62 @@
+# azdo-release-env
+
+Interactive CLI that extracts environment variables from the **DEV/Development** environment of an Azure DevOps **Release** pipeline definition and exports them to `./.env` or `./env.json`.
+
+## Requirements
+
+- Node.js
+- Azure CLI installed (`az`)
+  - https://learn.microsoft.com/cli/azure/install-azure-cli
+- Azure DevOps extension installed
+  - `az extension add --name azure-devops`
+- Authenticated to Azure DevOps
+  - `az devops login`
+- Azure DevOps defaults (`organization` and `project`)
+  - If missing, the CLI will prompt and set them via `az devops configure -d ...`.
+
+## Install
+
+```bash
+npm install
+```
+
+(Optional) Make the command available on your machine:
+
+```bash
+npm link
+```
+
+## Usage
+
+Run interactively:
+
+```bash
+npm start
+```
+
+Or (after `npm link`):
+
+```bash
+azdo-release-env
+```
+
+The CLI will prompt you to:
+
+- Select a release pipeline definition
+- Choose an export format (`.env` or JSON)
+- Confirm writing to the current directory
+
+### Output
+
+- `.env` export writes `./.env`
+- `JSON` export writes `./env.json`
+
+## Notes
+
+- Environment match is case-insensitive: `DEV` or `Development`.
+- Variable groups are currently not included (only explicit environment `variables`).
+
+## Troubleshooting
+
+- If `az` is not installed, install Azure CLI first.
+- If you see an authentication error, run `az devops login`.
