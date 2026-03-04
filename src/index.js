@@ -77,13 +77,35 @@ async function azText(args, { cwd } = {}) {
   }
 }
 
-function normalizeEnvName(name) {
-  return String(name || '').trim().toLowerCase();
-}
+async function promptForEnvironment(definition, { definitionId } = {}) {
+  const envs = definition?.environments;
+  if (!Array.isArray(envs) || envs.length === 0) {
+    throw new Error(
+      `No environments found in release definition${definitionId ? ` id ${definitionId}` : ''}.`
+    );
+  }
 
-function isDevEnvName(name) {
-  const n = normalizeEnvName(name);
-  return n === 'dev' || n === 'development';
+  const envIdOrIndex = await inquirer.select({
+    message: 'Select an environment:',
+    pageSize: 20,
+    // Keep API order (no sorting)
+    choices: envs.map((e, idx) => {
+      const name = (e?.name && String(e.name).trim()) || '(unnamed environment)';
+      const id = e?.id;
+      const label = id !== undefined ? `${name} (id: ${id})` : name;
+      const value = id !== undefined ? id : idx;
+      return { name: label, value };
+    }),
+  });
+
+  const selectedById = envs.find((e) => e?.id === envIdOrIndex);
+  if (selectedById) return selectedById;
+
+  if (Number.isInteger(envIdOrIndex) && envIdOrIndex >= 0 && envIdOrIndex < envs.length) {
+    return envs[envIdOrIndex];
+  }
+
+  throw new Error('Selected environment could not be resolved.');
 }
 
 function toDotenv(vars) {
@@ -216,11 +238,7 @@ async function showReleaseDefinition(id) {
   return azJson(['pipelines', 'release', 'definition', 'show', '--id', String(id)]);
 }
 
-function pickDevEnvironment(definition) {
-  const envs = definition?.environments;
-  if (!Array.isArray(envs)) return null;
-  return envs.find((e) => isDevEnvName(e?.name)) || null;
-}
+
 
 async function runInteractive() {
   await ensureAzAvailable();
@@ -248,21 +266,15 @@ async function runInteractive() {
   })
 
   const definition = await showReleaseDefinition(defId);
-  const devEnv = pickDevEnvironment(definition);
-  if (!devEnv) {
-    const available = (definition?.environments || []).map((e) => e?.name).filter(Boolean);
-    throw new Error(
-      `No DEV/Development environment found in definition id ${defId}.` +
-        (available.length ? ` Available environments: ${available.join(', ')}` : '')
-    );
-  }
+  const selectedEnv = await promptForEnvironment(definition, { definitionId: defId });
 
-  const envVars = devEnv.variables || {};
+  const envVars = selectedEnv.variables || {};
   const simplified = simplifyVars(envVars);
 
   const keys = Object.keys(simplified);
   if (keys.length === 0) {
-    throw new Error(`DEV environment has no variables in definition id ${defId}.`);
+    const envName = selectedEnv?.name ? `"${selectedEnv.name}" ` : '';
+    throw new Error(`Selected environment ${envName}has no variables in definition id ${defId}.`);
   }
   
   const format = await inquirer.select({
@@ -301,7 +313,7 @@ async function main() {
   program
     .name('azdo-release-env')
     .description(
-      'Extract DEV/Development environment variables from Azure DevOps release pipelines'
+      'Extract environment variables from Azure DevOps release pipelines'
     )
     .version('1.0.0');
 
