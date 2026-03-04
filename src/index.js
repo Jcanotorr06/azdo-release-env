@@ -7,19 +7,62 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import chalk from 'chalk';
 
+/**
+ * @typedef {Object} AZReleaseVariable
+ * @property {string} value Variable value.
+ * @property {boolean} isSecret Whether the variable is marked as secret.
+ */
+/**
+ * @typedef {Object} AZEnvironment
+ * @property {string} name Environment name.
+ * @property {number} id Environment id.
+ * @property {Record<string, AZReleaseVariable>} variables Environment variables.
+ */
+/**
+ * @typedef {Object} AZReleaseDefinition
+ * @property {string} name Release definition name.
+ * @property {number} id Release definition id.
+ * @property {AZEnvironment[]} environments List of environments in the release definition.
+ */
+
+/**
+ * Creates a set of CLI style helpers.
+ *
+ * @param {import('chalk').ChalkInstance} chalkInstance Chalk instance used for styling.
+ * @returns {{ error: (message: string) => string }} Style helper functions.
+ */
 const createCliStyles = (chalkInstance) => ({
   error: (message) => chalkInstance.redBright(message),
 });
 
 const CLI_STYLES = createCliStyles(chalk);
 
+/**
+ * Formats an error for display in the CLI.
+ *
+ * @param {{ error: (message: string) => string }} styles Style helpers.
+ * @param {unknown} err Error-like value.
+ * @returns {string} Formatted error string.
+ */
 const formatCliError = (styles, err) => styles.error(err?.message || err);
 
+/**
+ * Detects whether an error indicates the Azure CLI is not installed.
+ *
+ * @param {any} err Error thrown from executing `az`.
+ * @returns {boolean} True if `az` appears missing.
+ */
 function isAzNotInstalledError(err) {
   // Windows: spawn az ENOENT, POSIX: ENOENT
   return err?.code === 'ENOENT' || /spawn\s+az\s+enoent/i.test(err?.message || '');
 }
 
+/**
+ * Detects whether an error indicates Azure DevOps CLI authentication failure.
+ *
+ * @param {any} err Error thrown from executing `az devops`.
+ * @returns {boolean} True if the error appears auth-related.
+ */
 function isAzDevopsAuthError(err) {
   const msg = `${err?.stderr || ''}\n${err?.message || ''}`.toLowerCase();
   // Common messages:
@@ -35,6 +78,13 @@ function isAzDevopsAuthError(err) {
   );
 }
 
+/**
+ * Wraps an Azure CLI execution error with a friendlier message.
+ *
+ * @param {string[]} args Azure CLI args (excluding the `az` binary).
+ * @param {any} err Error thrown from executing `az`.
+ * @returns {Error} Wrapped error.
+ */
 function wrapAzError(args, err) {
   if (isAzNotInstalledError(err)) {
     const e = new Error(
@@ -58,6 +108,13 @@ function wrapAzError(args, err) {
   return wrapped;
 }
 
+/**
+ * Executes an Azure CLI command and parses its JSON output.
+ *
+ * @param {string[]} args Azure CLI args (excluding the `az` binary).
+ * @param {{ cwd?: string } | undefined} [options] Execution options.
+ * @returns {Promise<any>} Parsed JSON output.
+ */
 async function azJson(args, { cwd } = {}) {
   try {
     const finalArgs = [...args, '--output', 'json'];
@@ -68,6 +125,13 @@ async function azJson(args, { cwd } = {}) {
   }
 }
 
+/**
+ * Executes an Azure CLI command and returns its stdout.
+ *
+ * @param {string[]} args Azure CLI args (excluding the `az` binary).
+ * @param {{ cwd?: string } | undefined} [options] Execution options.
+ * @returns {Promise<string>} Command stdout.
+ */
 async function azText(args, { cwd } = {}) {
   try {
     const { stdout } = await execa('az', args, { cwd });
@@ -77,6 +141,13 @@ async function azText(args, { cwd } = {}) {
   }
 }
 
+/**
+ * Prompts the user to choose an environment from a release definition.
+ *
+ * @param {AZReleaseDefinition} definition Azure DevOps release definition object.
+ * @param {{ definitionId?: number | string } | undefined} [options] Options for error context.
+ * @returns {Promise<AZEnvironment>} Selected environment object.
+ */
 async function promptForEnvironment(definition, { definitionId } = {}) {
   const envs = definition?.environments;
   if (!Array.isArray(envs) || envs.length === 0) {
@@ -108,6 +179,12 @@ async function promptForEnvironment(definition, { definitionId } = {}) {
   throw new Error('Selected environment could not be resolved.');
 }
 
+/**
+ * Converts a variable map into `.env` file content.
+ *
+ * @param {Record<string, { value: string } | string | number | boolean | null | undefined>} vars Variables to serialize.
+ * @returns {string} Dotenv formatted content.
+ */
 function toDotenv(vars) {
   // vars: Record<string, { value: string } | string>
   // We will output KEY=VALUE, quoting when necessary.
@@ -138,6 +215,12 @@ function toDotenv(vars) {
   return lines.join('\n') + (lines.length ? '\n' : '');
 }
 
+/**
+ * Simplifies Azure release variables to a plain key/value object.
+ *
+ * @param {Record<string, { value: string } | string | number | boolean | null | undefined>} vars Azure release variables.
+ * @returns {Record<string, any>} Simplified key/value object.
+ */
 function simplifyVars(vars) {
   // Azure release variables shape: { KEY: { value, isSecret, ... } }
   // We'll omit secrets? For now, include value if present.
@@ -149,6 +232,12 @@ function simplifyVars(vars) {
   return out;
 }
 
+/**
+ * Ensures the Azure CLI and the azure-devops extension are available.
+ *
+ * @param {void} _ Unused.
+ * @returns {Promise<void>} Resolves when checks pass.
+ */
 async function ensureAzAvailable() {
   // Dedicated check so we can surface a clearer message.
   try {
@@ -162,6 +251,12 @@ async function ensureAzAvailable() {
   await azText(['devops', '-h']);
 }
 
+/**
+ * Reads Azure DevOps defaults from `az devops configure -l`.
+ *
+ * @param {void} _ Unused.
+ * @returns {Promise<{ organization?: string, project?: string }>} Current defaults.
+ */
 async function getDevopsDefaults() {
   // Returns { organization, project } possibly undefined.
   // az devops configure -l output example (text):
@@ -180,6 +275,12 @@ async function getDevopsDefaults() {
   return defaults;
 }
 
+/**
+ * Prompts for missing Azure DevOps defaults and persists them.
+ *
+ * @param {void} _ Unused.
+ * @returns {Promise<{ organization?: string, project?: string }>} Resolved defaults.
+ */
 async function promptAndSetDevopsDefaultsIfMissing() {
   const defaults = await getDevopsDefaults();
 
@@ -222,6 +323,12 @@ async function promptAndSetDevopsDefaultsIfMissing() {
   return newDefaults;
 }
 
+/**
+ * Lists Azure DevOps release definitions for the configured project.
+ *
+ * @param {void} _ Unused.
+ * @returns {Promise<Array<{ id: number, name: string }>>} Release definitions.
+ */
 async function listReleaseDefinitions() {
   // Query trims output to id/name.
   return azJson([
@@ -234,12 +341,24 @@ async function listReleaseDefinitions() {
   ]);
 }
 
+/**
+ * Fetches a single release definition by id.
+ *
+ * @param {number | string} id Release definition id.
+ * @returns {Promise<AZReleaseDefinition>} Release definition.
+ */
 async function showReleaseDefinition(id) {
   return azJson(['pipelines', 'release', 'definition', 'show', '--id', String(id)]);
 }
 
 
 
+/**
+ * Runs the interactive CLI flow.
+ *
+ * @param {void} _ Unused.
+ * @returns {Promise<void>} Resolves when flow completes.
+ */
 async function runInteractive() {
   await ensureAzAvailable();
   await promptAndSetDevopsDefaultsIfMissing();
@@ -307,13 +426,19 @@ async function runInteractive() {
   console.log(`Wrote ${keys.length} variables to ${outPath}`);
 }
 
+/**
+ * CLI entrypoint.
+ *
+ * @param {void} _ Unused.
+ * @returns {Promise<void>} Resolves when the CLI finishes parsing.
+ */
 async function main() {
   const program = new Command();
 
   program
     .name('azdo-release-env')
     .description(
-      'Extract environment variables from Azure DevOps release pipelines'
+      'Extract DEV/Development environment variables from Azure DevOps release pipelines'
     )
     .version('1.0.0');
 
