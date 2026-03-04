@@ -1,18 +1,20 @@
 {
   "name": "azdo-release-env",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool for exporting Azure DevOps release environment variables",
-  "main": "src/index.js",
+  "main": "dist/index.min.js",
   "bin": {
-    "azdo-release-env": "src/index.js"
+    "azdo-release-env": "dist/index.min.js"
   },
   "types": "types/index.d.ts",
   "scripts": {
     "start": "node src/index.js",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "echo \"No tests yet\" && exit 0",
+    "build": "terser ./src/index.js --compress --mangle --output dist/index.min.js",
+    "prepare": "npm run build"
   },
   "files": [
-    "src/*.js",
+    "dist/*.js",
     "types/index.d.ts"
   ],
   "keywords": [
@@ -37,6 +39,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.3.3",
+    "terser": "^5.46.0",
     "typescript": "^5.9.3"
   },
   "engines": {
