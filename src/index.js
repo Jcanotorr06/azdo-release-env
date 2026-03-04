@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-const { Command } = require('commander');
-const inquirer = require('inquirer');
-const { execa } = require('execa');
-const fs = require('fs/promises');
-const path = require('path');
+import { Command } from 'commander';
+import * as inquirer from '@inquirer/prompts';
+import { execa } from 'execa';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 function isAzNotInstalledError(err) {
   // Windows: spawn az ENOENT, POSIX: ENOENT
@@ -155,16 +155,14 @@ async function promptAndSetDevopsDefaultsIfMissing() {
   const questions = [];
   if (!defaults.organization) {
     questions.push({
-      type: 'input',
-      name: 'organization',
+      required: true,
       message: 'Azure DevOps organization URL (e.g., https://dev.azure.com/your-org):',
       validate: (v) => (String(v || '').trim() ? true : 'Organization is required'),
     });
   }
   if (!defaults.project) {
     questions.push({
-      type: 'input',
-      name: 'project',
+      required: true,
       message: 'Azure DevOps project name:',
       validate: (v) => (String(v || '').trim() ? true : 'Project is required'),
     });
@@ -172,7 +170,9 @@ async function promptAndSetDevopsDefaultsIfMissing() {
 
   if (questions.length === 0) return defaults;
 
-  const answers = await inquirer.prompt(questions);
+  questions.forEach(async (q) => {
+    const anser = await inquirer.input(q);
+  })
 
   const newDefaults = {
     organization: defaults.organization || answers.organization,
@@ -217,26 +217,26 @@ async function runInteractive() {
   await ensureAzAvailable();
   await promptAndSetDevopsDefaultsIfMissing();
 
+  /**
+   * List release definitions
+   * @type {Array<{id: number, name: string}>}
+   */
   const defs = await listReleaseDefinitions();
   if (!defs || defs.length === 0) {
     throw new Error('No release definitions found in this Azure DevOps project.');
   }
 
-  const { defId } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'defId',
-      message: 'Select a release pipeline definition:',
+  const defId = await inquirer.select({
+    message: 'Select a release pipeline definition:',
+    choices: defs
+      .slice()
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+      .map((d) => ({
+        name: `${d.name} (id: ${d.id})`,
+        value: d.id,
+      })),
       pageSize: 20,
-      choices: defs
-        .slice()
-        .sort((a, b) => String(a.name).localeCompare(String(b.name)))
-        .map((d) => ({
-          name: `${d.name} (id: ${d.id})`,
-          value: d.id,
-        })),
-    },
-  ]);
+  })
 
   const definition = await showReleaseDefinition(defId);
   const devEnv = pickDevEnvironment(definition);
@@ -255,31 +255,24 @@ async function runInteractive() {
   if (keys.length === 0) {
     throw new Error(`DEV environment has no variables in definition id ${defId}.`);
   }
-
-  const { format } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'format',
-      message: 'Export format:',
-      choices: [
-        { name: '.env', value: 'env' },
-        { name: 'JSON', value: 'json' },
-      ],
-    },
-  ]);
+  
+  const format = await inquirer.select({
+    message: 'Export format:',
+    choices: [
+      { name: '.env', value: 'env' },
+      { name: 'JSON', value: 'json' },
+    ],
+    default: 'env',
+  })
 
   const cwd = process.cwd();
   const outPath =
     format === 'env' ? path.join(cwd, '.env') : path.join(cwd, 'env.json');
 
-  const { confirmWrite } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'confirmWrite',
-      message: `Write ${keys.length} variables to ${path.basename(outPath)} in current directory?`,
-      default: true,
-    },
-  ]);
+  const confirmWrite = await inquirer.confirm({
+    message: `Write ${keys.length} variables to ${path.basename(outPath)} in current directory?`,
+    default: true,
+  })
 
   if (!confirmWrite) return;
 
