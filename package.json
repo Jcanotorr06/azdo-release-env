@@ -1,6 +1,6 @@
 {
   "name": "azdo-release-env",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI tool for exporting Azure DevOps release environment variables",
   "main": "src/index.js",
   "bin": {
@@ -11,6 +11,10 @@
     "start": "node src/index.js",
     "test": "echo \"No tests yet\" && exit 0"
   },
+  "files": [
+    "src/*.js",
+    "types/index.d.ts"
+  ],
   "keywords": [
     "azure-devops",
     "release",
@@ -27,10 +31,12 @@
   "type": "module",
   "dependencies": {
     "@inquirer/prompts": "^8.3.0",
-    "@types/node": "^25.3.3",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
-    "execa": "^9.6.1",
+    "execa": "^9.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
     "typescript": "^5.9.3"
   },
   "engines": {
