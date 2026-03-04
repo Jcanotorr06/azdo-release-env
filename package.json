@@ -9,7 +9,7 @@
   "types": "types/index.d.ts",
   "scripts": {
     "start": "node src/index.js",
-    "test": "echo \"No tests yet\" && exit 1"
+    "test": "echo \"No tests yet\" && exit 0"
   },
   "keywords": [
     "azure-devops",
