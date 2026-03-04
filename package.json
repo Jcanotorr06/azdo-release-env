@@ -12,10 +12,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
+    "@inquirer/prompts": "^8.3.0",
     "commander": "^14.0.3",
-    "execa": "^9.6.1",
-    "inquirer": "^13.3.0"
+    "execa": "^9.6.1"
   }
 }
