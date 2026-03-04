@@ -1,6 +1,6 @@
 # azdo-release-env
 
-Interactive CLI that extracts environment variables from the **DEV/Development** environment of an Azure DevOps **Release** pipeline definition and exports them to `./.env` or `./env.json`.
+Interactive CLI that extracts environment variables from a selected Azure DevOps **Release** pipeline environment and exports them to `./.env` or `./env.json`.
 
 ## Requirements
 
@@ -53,7 +53,7 @@ The CLI will prompt you to:
 
 ## Notes
 
-- Environment match is case-insensitive: `DEV` or `Development`.
+- The CLI prompts you to select an environment from the release definition.
 - Variable groups are currently not included (only explicit environment `variables`).
 
 ## Troubleshooting
