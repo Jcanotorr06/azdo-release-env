@@ -5,6 +5,15 @@ import * as inquirer from '@inquirer/prompts';
 import { execa } from 'execa';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import chalk from 'chalk';
+
+const createCliStyles = (chalkInstance) => ({
+  error: (message) => chalkInstance.redBright(message),
+});
+
+const CLI_STYLES = createCliStyles(chalk);
+
+const formatCliError = (styles, err) => styles.error(err?.message || err);
 
 function isAzNotInstalledError(err) {
   // Windows: spawn az ENOENT, POSIX: ENOENT
@@ -301,7 +310,7 @@ async function main() {
       await runInteractive();
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(err?.message || err);
+      console.error(formatCliError(CLI_STYLES, err));
       process.exitCode = 1;
     }
   });
