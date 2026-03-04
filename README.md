@@ -21,24 +21,15 @@ This is a personal project and is not officially supported by Microsoft or Azure
 ## Install
 
 ```bash
-npm install
+npm install -g azdo-release-env
 ```
-
-(Optional) Make the command available on your machine:
+Or 
 
 ```bash
-npm link
+npx azdo-release-env
 ```
 
 ## Usage
-
-Run interactively:
-
-```bash
-npm start
-```
-
-Or (after `npm link`):
 
 ```bash
 azdo-release-env
