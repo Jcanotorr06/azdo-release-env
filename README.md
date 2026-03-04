@@ -2,6 +2,10 @@
 
 Interactive CLI that extracts environment variables from a selected Azure DevOps **Release** pipeline environment and exports them to `./.env` or `./env.json`.
 
+## Disclaimer
+
+This is a personal project and is not officially supported by Microsoft or Azure DevOps. This CLI requires the Azure CLI and Azure DevOps extension to be installed and authenticated. It reads the release definition and environment variables via the Azure DevOps REST API. It does not store or transmit any data outside of your local machine. Use at your own risk.
+
 ## Requirements
 
 - Node.js
